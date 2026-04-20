@@ -1,0 +1,7 @@
+node_modules
+dist
+.wrangler
+.vite
+coverage
+*.local
+__gi_*

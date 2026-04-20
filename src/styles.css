@@ -1,0 +1,131 @@
+:root {
+  color-scheme: light;
+  color: oklch(20% 0.018 42);
+  background: oklch(97% 0.018 78);
+  font-family: Athelas, "Yu Mincho", "Hiragino Mincho ProN", serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: oklch(20% 0.018 42);
+  --muted: oklch(44% 0.04 54);
+  --paper: oklch(97% 0.018 78);
+  --rule: oklch(77% 0.05 62);
+  --rust: oklch(58% 0.15 45);
+  --rust-deep: oklch(36% 0.11 38);
+  --error: oklch(47% 0.18 24);
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+  --space-4xl: 64px;
+  --space-5xl: 96px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+a {
+  color: var(--rust-deep);
+  text-decoration-color: color-mix(in oklch, var(--rust), transparent 32%);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--rust);
+}
+
+.page {
+  display: grid;
+  gap: clamp(var(--space-3xl), 7vw, var(--space-5xl));
+  width: min(1024px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: clamp(var(--space-3xl), 8vw, var(--space-5xl)) 0;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  /* max-width: 9.5ch; */
+  color: var(--ink);
+  font-size: clamp(3.4rem, 13vw, 8.5rem);
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: 0;
+}
+
+.status {
+  color: var(--muted);
+  font-size: 1.35rem;
+  line-height: 1.5;
+}
+
+.status--error {
+  color: var(--error);
+}
+
+.answer {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.answer__value {
+  color: var(--rust-deep);
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.progress {
+  block-size: clamp(28px, 5vw, 44px);
+  border: 1px solid var(--ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklch, var(--paper), var(--rule) 15%) 0 8px,
+    var(--paper) 8px 16px
+  );
+}
+
+.progress__bar {
+  display: block;
+  block-size: 100%;
+  background: var(--rust);
+}
+
+.repo-list {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: var(--space-xl) 0 0 1.6em;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  line-height: 1.45;
+}
+
+.repo-list li {
+  padding-inline-start: var(--space-sm);
+}
+
+.repo-list li::marker {
+  color: var(--rust);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 520px) {
+  .page {
+    width: min(100% - 24px, 760px);
+  }
+}
