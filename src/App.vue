@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from "vue";
 type StatsItem = {
   id: string;
   name: string;
+  type: string;
   author: string | null;
   repoUrl: string | null;
   isRust: boolean;
@@ -28,17 +29,25 @@ const stats = ref<StatsResponse | null>(null);
 const errorMessage = ref<string | null>(null);
 const isLoading = ref(true);
 const targetMode = ref<TargetMode>("all");
+const showTruth = ref(false);
 
 const targetItems = computed(() => {
   if (stats.value === null) {
     return [];
   }
 
+  let items: StatsItem[];
   if (targetMode.value === "all") {
-    return stats.value.items;
+    items = stats.value.items;
+  } else {
+    items = stats.value.items.filter((item) => item.hasNativeBinary);
   }
 
-  return stats.value.items.filter((item) => item.hasNativeBinary);
+  if (!showTruth.value) {
+    return items;
+  }
+
+  return items.filter((item) => item.author !== "Nanashi.");
 });
 
 const rustRepositories = computed(() => {
@@ -124,13 +133,17 @@ function ratio(numerator: number, denominator: number): number {
     </p>
 
     <template v-else-if="stats !== null">
-      <label class="target-select">
-        <span>対象</span>
-        <select v-model="targetMode">
+      <div class="target-select">
+        <label for="target-mode">対象</label>
+        <select id="target-mode" v-model="targetMode">
           <option value="all">すべての登録されているコンテンツ</option>
           <option value="nativeBinary">ネイティブバイナリがあるもののみ</option>
         </select>
-      </label>
+        <label class="truth-toggle">
+          <input v-model="showTruth" type="checkbox" />
+          真実を表示する
+        </label>
+      </div>
 
       <section class="answer" aria-label="Rust percentage">
         <p class="answer__value">

@@ -1,7 +1,11 @@
+// NOTE:
+// - KuroNeko.CopyAlias：デフォルトブランチにRustが含まれていないだけで、実際はRustが使われている
+const rustOverrides = ["KuroNeko.CopyAlias"];
+
 export const CATALOG_URL =
   "https://raw.githubusercontent.com/Neosku/aviutl2-catalog-data/refs/heads/main/index.json";
 
-export const CACHE_MAX_AGE_SECONDS = 60 * 60;
+export const CACHE_MAX_AGE_SECONDS = 5 * 60;
 
 export type CatalogEntry = {
   id: string;
@@ -169,7 +173,7 @@ export async function buildStats(
       repoUrl: entry.repoURL ?? null,
       latestVersion: entry["latest-version"] ?? null,
       isGithubSource: repo !== null,
-      isRust: Object.hasOwn(languages, "Rust"),
+      isRust: rustOverrides.includes(entry.id) || Object.hasOwn(languages, "Rust"),
       hasNativeBinary: hasNativeBinary(entry),
       languages,
     };

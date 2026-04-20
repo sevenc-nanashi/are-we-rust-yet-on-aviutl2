@@ -94,6 +94,17 @@ h1 {
   font: inherit;
 }
 
+.truth-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.875rem;
+}
+
+.truth-toggle input {
+  margin: 0;
+}
+
 .answer {
   display: grid;
   gap: var(--space-lg);
