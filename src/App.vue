@@ -140,13 +140,13 @@ function ratio(numerator: number, denominator: number): number {
           >sevenc-nanashi/are-we-rust-yet-on-aviutl2</a
         >
       </p>
-      <p v-if="isLoading" class="status" aria-live="polite">Loading...</p>
-      <p v-else-if="errorMessage !== null" class="status status--error" aria-live="assertive">
-        {{ errorMessage }}
-      </p>
     </div>
 
-    <template v-if="!isLoading && errorMessage === null">
+    <p v-if="isLoading" class="status" aria-live="polite">Loading...</p>
+    <p v-else-if="errorMessage !== null" class="status status--error" aria-live="assertive">
+      {{ errorMessage }}
+    </p>
+    <template v-else>
       <div class="target-select">
         <label for="target-mode">対象</label>
         <select id="target-mode" v-model="targetMode">
