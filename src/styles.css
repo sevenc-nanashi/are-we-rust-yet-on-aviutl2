@@ -100,10 +100,21 @@ h1 {
 }
 
 .answer__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-md);
   color: var(--rust-deep);
   font-size: clamp(2.5rem, 8vw, 5rem);
   font-weight: 700;
   line-height: 1;
+}
+
+.answer__fraction {
+  color: var(--muted);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
 }
 
 .progress {

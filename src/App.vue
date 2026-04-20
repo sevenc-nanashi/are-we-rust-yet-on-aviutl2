@@ -60,11 +60,12 @@ const rustRepositories = computed(() => {
 });
 
 const rustRatio = computed(() => {
-  const rustCount = targetItems.value.filter((item) => item.isRust).length;
-  return ratio(rustCount, targetItems.value.length);
+  return ratio(rustCount.value, targetItems.value.length);
 });
 
 const rustPercent = computed(() => formatPercent(rustRatio.value));
+const rustCount = computed(() => targetItems.value.filter((item) => item.isRust).length);
+const rustFraction = computed(() => `${rustCount.value} / ${targetItems.value.length}`);
 const progressValue = computed(() => `${Math.max(0, Math.min(1, rustRatio.value)) * 100}%`);
 
 onMounted(async () => {
@@ -132,7 +133,10 @@ function ratio(numerator: number, denominator: number): number {
       </label>
 
       <section class="answer" aria-label="Rust percentage">
-        <p class="answer__value">{{ rustPercent }}</p>
+        <p class="answer__value">
+          <span>{{ rustPercent }}</span>
+          <span class="answer__fraction">{{ rustFraction }}</span>
+        </p>
         <div
           class="progress"
           role="meter"
