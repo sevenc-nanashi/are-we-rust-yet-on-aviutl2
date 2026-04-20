@@ -7,6 +7,7 @@ import {
   buildStats,
   hasNativeBinary,
   isTargetType,
+  parseCatalogEntries,
   parseGitHubRepo,
   repoKey,
 } from "./catalog";
@@ -43,6 +44,65 @@ describe("parseGitHubRepo", () => {
     ).toBeNull();
     expect(parseGitHubRepo("https://example.com/owner/repo")).toBeNull();
     expect(parseGitHubRepo(undefined)).toBeNull();
+  });
+});
+
+describe("parseCatalogEntries", () => {
+  it("parses catalog entries with required fields and known optional fields", () => {
+    expect(
+      parseCatalogEntries([
+        {
+          id: "plugin",
+          name: "Plugin",
+          type: "汎用プラグイン",
+          summary: "Summary",
+          author: "Author",
+          repoURL: "https://github.com/example/plugin",
+          "latest-version": "1.0.0",
+          version: [
+            {
+              version: "1.0.0",
+              file: [{ path: "{pluginsDir}/plugin.aux2" }],
+            },
+          ],
+          popularity: 100,
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "plugin",
+        name: "Plugin",
+        type: "汎用プラグイン",
+        summary: "Summary",
+        author: "Author",
+        repoURL: "https://github.com/example/plugin",
+        "latest-version": "1.0.0",
+        version: [
+          {
+            version: "1.0.0",
+            file: [{ path: "{pluginsDir}/plugin.aux2" }],
+          },
+        ],
+        popularity: 100,
+      },
+    ]);
+  });
+
+  it("rejects invalid catalog roots and entries", () => {
+    expect(() => parseCatalogEntries({})).toThrow("Catalog JSON is invalid:");
+    expect(() => parseCatalogEntries([{ name: "Plugin", type: "汎用プラグイン" }])).toThrow(
+      "Catalog JSON is invalid:",
+    );
+    expect(() =>
+      parseCatalogEntries([
+        {
+          id: "plugin",
+          name: "Plugin",
+          type: "汎用プラグイン",
+          version: [{ version: "1.0.0", file: [{ path: 1 }] }],
+        },
+      ]),
+    ).toThrow("Catalog JSON is invalid:");
   });
 });
 

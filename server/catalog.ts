@@ -1,3 +1,5 @@
+import * as v from "valibot";
+
 // NOTE:
 // - KuroNeko.CopyAlias：デフォルトブランチにRustが含まれていないだけで、実際はRustが使われている
 const rustOverrides = ["KuroNeko.CopyAlias"];
@@ -7,25 +9,33 @@ export const CATALOG_URL =
 
 export const CACHE_MAX_AGE_SECONDS = 5 * 60;
 
-export type CatalogEntry = {
-  id: string;
-  name: string;
-  type: string;
-  summary?: string;
-  author?: string;
-  repoURL?: string;
-  "latest-version"?: string;
-  version?: CatalogVersion[];
-};
+const CatalogFileSchema = v.looseObject({
+  path: v.string(),
+});
 
-export type CatalogVersion = {
-  version: string;
-  file?: CatalogFile[];
-};
+const CatalogVersionSchema = v.looseObject({
+  version: v.string(),
+  file: v.optional(v.array(CatalogFileSchema)),
+});
 
-export type CatalogFile = {
-  path: string;
-};
+const CatalogEntrySchema = v.looseObject({
+  id: v.string(),
+  name: v.string(),
+  type: v.string(),
+  summary: v.optional(v.string()),
+  author: v.optional(v.string()),
+  repoURL: v.optional(v.string()),
+  "latest-version": v.optional(v.string()),
+  version: v.optional(v.array(CatalogVersionSchema)),
+});
+
+const CatalogEntriesSchema = v.array(CatalogEntrySchema);
+
+export type CatalogEntry = v.InferOutput<typeof CatalogEntrySchema>;
+
+export type CatalogVersion = v.InferOutput<typeof CatalogVersionSchema>;
+
+export type CatalogFile = v.InferOutput<typeof CatalogFileSchema>;
 
 export type GitHubRepo = {
   owner: string;
@@ -68,20 +78,13 @@ export type GitHubLanguagesFetcher = (repo: GitHubRepo) => Promise<Languages>;
 
 const NATIVE_BINARY_EXTENSIONS = new Set(["aui2", "auo2", "auf2", "aux2", "mod2"]);
 
-export function assertCatalogEntries(value: unknown): asserts value is CatalogEntry[] {
-  if (!Array.isArray(value)) {
-    throw new Error("Catalog JSON must be an array.");
+export function parseCatalogEntries(value: unknown): CatalogEntry[] {
+  const result = v.safeParse(CatalogEntriesSchema, value);
+  if (!result.success) {
+    throw new Error(`Catalog JSON is invalid: ${v.summarize(result.issues)}`);
   }
 
-  for (const [index, entry] of value.entries()) {
-    if (!isRecord(entry)) {
-      throw new Error(`Catalog entry at index ${index} must be an object.`);
-    }
-    assertString(entry.id, `Catalog entry at index ${index}.id`);
-    assertString(entry.name, `Catalog entry at index ${index}.name`);
-    assertString(entry.type, `Catalog entry at index ${index}.type`);
-    assertCatalogVersions(entry.version, `Catalog entry at index ${index}.version`);
-  }
+  return result.output;
 }
 
 export function isTargetType(type: string): boolean {
@@ -210,47 +213,6 @@ function hasNativeBinaryExtension(path: string): boolean {
   return NATIVE_BINARY_EXTENSIONS.has(extension.toLowerCase());
 }
 
-function assertCatalogVersions(
-  value: unknown,
-  label: string,
-): asserts value is CatalogVersion[] | undefined {
-  if (value === undefined) {
-    return;
-  }
-
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array.`);
-  }
-
-  for (const [versionIndex, version] of value.entries()) {
-    if (!isRecord(version)) {
-      throw new Error(`${label} at index ${versionIndex} must be an object.`);
-    }
-    assertString(version.version, `${label} at index ${versionIndex}.version`);
-    assertCatalogFiles(version.file, `${label} at index ${versionIndex}.file`);
-  }
-}
-
-function assertCatalogFiles(
-  value: unknown,
-  label: string,
-): asserts value is CatalogFile[] | undefined {
-  if (value === undefined) {
-    return;
-  }
-
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array.`);
-  }
-
-  for (const [fileIndex, file] of value.entries()) {
-    if (!isRecord(file)) {
-      throw new Error(`${label} at index ${fileIndex} must be an object.`);
-    }
-    assertString(file.path, `${label} at index ${fileIndex}.path`);
-  }
-}
-
 export function repoKey(repo: GitHubRepo): string {
   return `${repo.owner.toLowerCase()}/${repo.repo.toLowerCase()}`;
 }
@@ -285,14 +247,4 @@ async function mapWithConcurrency<T, U>(
   const workers = Array.from({ length: Math.min(concurrency, values.length) }, () => worker());
   await Promise.all(workers);
   return results;
-}
-
-function assertString(value: unknown, label: string): asserts value is string {
-  if (typeof value !== "string") {
-    throw new Error(`${label} must be a string.`);
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }

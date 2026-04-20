@@ -11,6 +11,9 @@ importers:
       hono:
         specifier: ^4.12.9
         version: 4.12.9
+      valibot:
+        specifier: ^1.2.0
+        version: 1.2.0(typescript@6.0.3)
       vue:
         specifier: latest
         version: 3.5.32(typescript@6.0.3)
@@ -1139,6 +1142,14 @@ packages:
   unenv@2.0.0-rc.24:
     resolution: {integrity: sha512-i7qRCmY42zmCwnYlh9H2SvLEypEFGye5iRmEMKjcGi7zk9UquigRjFtTLz0TYqr0ZGLZhaMHl/foy1bZR+Cwlw==}
 
+  valibot@1.2.0:
+    resolution: {integrity: sha512-mm1rxUsmOxzrwnX5arGS+U4T25RdvpPjPN4yR0u9pUBov9+zGVtO84tif1eY4r6zWxVxu3KzIyknJy3rxfRZZg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   vite-plus@0.1.18:
     resolution: {integrity: sha512-RiWUoOmQiJMtd4Dfm6WD0v0Selqh/nQzmaGVIrkfnr+2s5UxGVZy7n2TCO5ZnR7w9noMIgtUAQN8GtKhwHEiOQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -2013,6 +2024,10 @@ snapshots:
   unenv@2.0.0-rc.24:
     dependencies:
       pathe: 2.0.3
+
+  valibot@1.2.0(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
 
   vite-plus@0.1.18(@voidzero-dev/vite-plus-core@0.1.18(esbuild@0.27.3)(typescript@6.0.3))(esbuild@0.27.3)(typescript@6.0.3):
     dependencies:

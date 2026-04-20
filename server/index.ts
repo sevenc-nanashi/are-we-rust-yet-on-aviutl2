@@ -6,8 +6,8 @@ import {
   type CatalogEntry,
   type GitHubRepo,
   type Languages,
-  assertCatalogEntries,
   buildStats,
+  parseCatalogEntries,
 } from "./catalog";
 
 type Env = {
@@ -33,9 +33,8 @@ app.get("/api/version", (c) => {
 
 app.get("/api/stats", async (c) => {
   try {
-    const cacheKey = new Request(new URL("/api/stats", c.req.url), c.req.raw);
     const cache = getDefaultCache();
-    const cached = await cache.match(cacheKey);
+    const cached = await cache.match(c.req.url);
     if (cached !== undefined) {
       const headers = new Headers(cached.headers);
       headers.set("X-Cache", "HIT");
@@ -57,10 +56,13 @@ app.get("/api/stats", async (c) => {
       (repo) => fetchGitHubLanguages(repo, token),
       new Date(),
     );
-    const response = json(stats, 200, {
+    const response = c.json(stats, 200, {
       "X-Cache": "MISS",
+      "Cache-Control": `public, max-age=${CACHE_MAX_AGE_SECONDS}`,
     });
-    c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+
+    await cache.put(c.req.url, response.clone());
+
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
@@ -94,8 +96,7 @@ async function fetchCatalog(): Promise<CatalogEntry[]> {
   }
 
   const json = await response.json();
-  assertCatalogEntries(json);
-  return json;
+  return parseCatalogEntries(json);
 }
 
 async function fetchGitHubLanguages(repo: GitHubRepo, token: string): Promise<Languages> {
