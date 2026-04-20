@@ -125,15 +125,28 @@ function ratio(numerator: number, denominator: number): number {
   <main class="page">
     <h1>Are We Rust Yet on AviUtl2?</h1>
 
-    <p>
-      AviUtl2カタログに登録されているコンテンツのうち、Rustで書かれたものがどれくらいあるのかを示すサイトです。
-    </p>
-    <p v-if="isLoading" class="status" aria-live="polite">Loading...</p>
-    <p v-else-if="errorMessage !== null" class="status status--error" aria-live="assertive">
-      {{ errorMessage }}
-    </p>
+    <div>
+      <p>
+        AviUtl2カタログに登録されているコンテンツのうち、Rustで書かれたものがどれくらいあるのかを示すサイトです。
+      </p>
+      <p v-if="showTruth" class="truth" aria-live="polite">
+        ちなみにRustで書いているのの大多数は私が作ったものです。
+      </p>
+      <p>
+        ソースコード：<a
+          href="https://github.com/sevenc-nanashi/are-we-rust-yet-on-aviutl2"
+          target="_blank"
+          rel="noreferrer"
+          >sevenc-nanashi/are-we-rust-yet-on-aviutl2</a
+        >
+      </p>
+      <p v-if="isLoading" class="status" aria-live="polite">Loading...</p>
+      <p v-else-if="errorMessage !== null" class="status status--error" aria-live="assertive">
+        {{ errorMessage }}
+      </p>
+    </div>
 
-    <template v-else-if="stats !== null">
+    <template v-if="!isLoading && errorMessage === null">
       <div class="target-select">
         <label for="target-mode">対象</label>
         <select id="target-mode" v-model="targetMode">
