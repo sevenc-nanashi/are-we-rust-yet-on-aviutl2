@@ -5,6 +5,7 @@ import {
   type GitHubLanguagesFetcher,
   type Languages,
   buildStats,
+  hasNativeBinary,
   isTargetType,
   parseGitHubRepo,
   repoKey,
@@ -46,25 +47,46 @@ describe("parseGitHubRepo", () => {
 });
 
 describe("buildStats", () => {
-  it("summarizes Rust ratios and deduplicates GitHub repository calls", async () => {
+  it("summarizes Rust ratios for all catalog entries and deduplicates GitHub repository calls", async () => {
     const catalog: CatalogEntry[] = [
       {
         id: "rust.plugin",
         name: "Rust Plugin",
         type: "汎用プラグイン",
         repoURL: "https://github.com/example/rusty",
+        "latest-version": "1.0.0",
+        version: [
+          {
+            version: "1.0.0",
+            file: [{ path: "{pluginsDir}/rust.aui2" }],
+          },
+        ],
       },
       {
         id: "rust.script",
         name: "Rust Script",
         type: "スクリプト",
         repoURL: "https://github.com/example/rusty",
+        "latest-version": "1.0.0",
+        version: [
+          {
+            version: "1.0.0",
+            file: [{ path: "{scriptsDir}/rust.anm2" }],
+          },
+        ],
       },
       {
         id: "ts.plugin",
         name: "TS Plugin",
         type: "フィルタプラグイン",
         repoURL: "https://github.com/example/ts",
+        "latest-version": "1.0.0",
+        version: [
+          {
+            version: "1.0.0",
+            file: [{ path: "{pluginsDir}/ts.auf2" }],
+          },
+        ],
       },
       {
         id: "drive.script",
@@ -77,6 +99,13 @@ describe("buildStats", () => {
         name: "Core",
         type: "本体",
         repoURL: "https://github.com/example/rusty",
+        "latest-version": "1.0.0",
+        version: [
+          {
+            version: "1.0.0",
+            file: [{ path: "{appDir}/aviutl2.exe" }],
+          },
+        ],
       },
     ];
     const fetchLanguages = vi.fn<GitHubLanguagesFetcher>(
@@ -96,19 +125,64 @@ describe("buildStats", () => {
 
     expect(fetchLanguages).toHaveBeenCalledTimes(2);
     expect(stats.totals).toEqual({
-      target: 4,
-      githubSource: 3,
-      rust: 2,
+      target: 5,
+      githubSource: 4,
+      rust: 3,
       nonRustGithub: 1,
       nonGithub: 1,
-      rustRatioOfTarget: 0.5,
-      rustRatioOfGithubSource: 2 / 3,
+      rustRatioOfTarget: 3 / 5,
+      rustRatioOfGithubSource: 3 / 4,
     });
-    expect(stats.items.map((item) => [item.id, item.isRust])).toEqual([
-      ["rust.plugin", true],
-      ["rust.script", true],
-      ["ts.plugin", false],
-      ["drive.script", false],
+    expect(stats.items.map((item) => [item.id, item.isRust, item.hasNativeBinary])).toEqual([
+      ["rust.plugin", true, true],
+      ["rust.script", true, false],
+      ["ts.plugin", false, true],
+      ["drive.script", false, false],
+      ["core", true, false],
     ]);
+  });
+});
+
+describe("hasNativeBinary", () => {
+  it("detects native binary extensions from the latest version files", () => {
+    const extensions = ["aui2", "auo2", "auf2", "aux2", "mod2"];
+
+    for (const extension of extensions) {
+      expect(
+        hasNativeBinary({
+          id: extension,
+          name: extension,
+          type: "汎用プラグイン",
+          "latest-version": "1.0.0",
+          version: [
+            {
+              version: "1.0.0",
+              file: [{ path: `{pluginsDir}/plugin.${extension}` }],
+            },
+          ],
+        }),
+      ).toBe(true);
+    }
+  });
+
+  it("ignores native binary files from non-latest versions", () => {
+    expect(
+      hasNativeBinary({
+        id: "legacy-native",
+        name: "Legacy Native",
+        type: "汎用プラグイン",
+        "latest-version": "2.0.0",
+        version: [
+          {
+            version: "1.0.0",
+            file: [{ path: "{pluginsDir}/legacy.aux2" }],
+          },
+          {
+            version: "2.0.0",
+            file: [{ path: "{scriptsDir}/latest.anm2" }],
+          },
+        ],
+      }),
+    ).toBe(false);
   });
 });

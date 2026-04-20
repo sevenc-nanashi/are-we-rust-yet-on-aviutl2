@@ -4,38 +4,45 @@ import { computed, onMounted, ref } from "vue";
 type StatsItem = {
   id: string;
   name: string;
-  author: string;
+  author: string | null;
   repoUrl: string | null;
   isRust: boolean;
+  hasNativeBinary: boolean;
   languages: Record<string, number>;
 };
 
 type StatsResponse = {
-  totals: {
-    target: number;
-    rust: number;
-    rustRatioOfTarget: number;
-  };
   items: StatsItem[];
 };
 
 type RepositoryItem = {
   id: string;
   name: string;
-  author: string;
+  author: string | null;
   repoUrl: string;
 };
+
+type TargetMode = "all" | "nativeBinary";
 
 const stats = ref<StatsResponse | null>(null);
 const errorMessage = ref<string | null>(null);
 const isLoading = ref(true);
+const targetMode = ref<TargetMode>("all");
 
-const rustRepositories = computed(() => {
+const targetItems = computed(() => {
   if (stats.value === null) {
     return [];
   }
 
-  return stats.value.items
+  if (targetMode.value === "all") {
+    return stats.value.items;
+  }
+
+  return stats.value.items.filter((item) => item.hasNativeBinary);
+});
+
+const rustRepositories = computed(() => {
+  return targetItems.value
     .filter((item) => item.isRust)
     .sort((left, right) => rustBytes(right) - rustBytes(left))
     .map((item): RepositoryItem => {
@@ -53,11 +60,8 @@ const rustRepositories = computed(() => {
 });
 
 const rustRatio = computed(() => {
-  if (stats.value === null) {
-    return 0;
-  }
-
-  return stats.value.totals.rustRatioOfTarget;
+  const rustCount = targetItems.value.filter((item) => item.isRust).length;
+  return ratio(rustCount, targetItems.value.length);
 });
 
 const rustPercent = computed(() => formatPercent(rustRatio.value));
@@ -97,6 +101,13 @@ function rustBytes(item: StatsItem): number {
   }
   return bytes;
 }
+
+function ratio(numerator: number, denominator: number): number {
+  if (denominator === 0) {
+    return 0;
+  }
+  return numerator / denominator;
+}
 </script>
 
 <template>
@@ -104,7 +115,7 @@ function rustBytes(item: StatsItem): number {
     <h1>Are We Rust Yet on AviUtl2?</h1>
 
     <p>
-      AviUtl2カタログに登録されているスクリプト・プラグインのうち、Rustで書かれたものがどれくらいあるのかを示すサイトです。
+      AviUtl2カタログに登録されているコンテンツのうち、Rustで書かれたものがどれくらいあるのかを示すサイトです。
     </p>
     <p v-if="isLoading" class="status" aria-live="polite">Loading...</p>
     <p v-else-if="errorMessage !== null" class="status status--error" aria-live="assertive">
@@ -112,6 +123,14 @@ function rustBytes(item: StatsItem): number {
     </p>
 
     <template v-else-if="stats !== null">
+      <label class="target-select">
+        <span>対象</span>
+        <select v-model="targetMode">
+          <option value="all">すべての登録されているコンテンツ</option>
+          <option value="nativeBinary">ネイティブバイナリがあるもののみ</option>
+        </select>
+      </label>
+
       <section class="answer" aria-label="Rust percentage">
         <p class="answer__value">{{ rustPercent }}</p>
         <div

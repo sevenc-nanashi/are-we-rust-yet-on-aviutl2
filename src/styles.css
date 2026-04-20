@@ -76,6 +76,24 @@ h1 {
   color: var(--error);
 }
 
+.target-select {
+  display: grid;
+  gap: var(--space-sm);
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.target-select select {
+  width: min(100%, 360px);
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+}
+
 .answer {
   display: grid;
   gap: var(--space-lg);

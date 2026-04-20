@@ -11,6 +11,16 @@ export type CatalogEntry = {
   author?: string;
   repoURL?: string;
   "latest-version"?: string;
+  version?: CatalogVersion[];
+};
+
+export type CatalogVersion = {
+  version: string;
+  file?: CatalogFile[];
+};
+
+export type CatalogFile = {
+  path: string;
 };
 
 export type GitHubRepo = {
@@ -30,6 +40,7 @@ export type StatsItem = {
   latestVersion: string | null;
   isGithubSource: boolean;
   isRust: boolean;
+  hasNativeBinary: boolean;
   languages: Languages;
 };
 
@@ -51,6 +62,8 @@ export type StatsResponse = {
 
 export type GitHubLanguagesFetcher = (repo: GitHubRepo) => Promise<Languages>;
 
+const NATIVE_BINARY_EXTENSIONS = new Set(["aui2", "auo2", "auf2", "aux2", "mod2"]);
+
 export function assertCatalogEntries(value: unknown): asserts value is CatalogEntry[] {
   if (!Array.isArray(value)) {
     throw new Error("Catalog JSON must be an array.");
@@ -63,6 +76,7 @@ export function assertCatalogEntries(value: unknown): asserts value is CatalogEn
     assertString(entry.id, `Catalog entry at index ${index}.id`);
     assertString(entry.name, `Catalog entry at index ${index}.name`);
     assertString(entry.type, `Catalog entry at index ${index}.type`);
+    assertCatalogVersions(entry.version, `Catalog entry at index ${index}.version`);
   }
 }
 
@@ -94,15 +108,33 @@ export function parseGitHubRepo(repoUrl: string | undefined): GitHubRepo | null 
   return { owner, repo: repo.replace(/\.git$/, "") };
 }
 
+export function hasNativeBinary(entry: CatalogEntry): boolean {
+  const latestVersion = entry["latest-version"];
+  if (latestVersion === undefined) {
+    return false;
+  }
+
+  const versions = entry.version;
+  if (versions === undefined) {
+    return false;
+  }
+
+  const latest = versions.find((version) => version.version === latestVersion);
+  if (latest === undefined || latest.file === undefined) {
+    return false;
+  }
+
+  return latest.file.some((file) => hasNativeBinaryExtension(file.path));
+}
+
 export async function buildStats(
   catalog: CatalogEntry[],
   fetchLanguages: GitHubLanguagesFetcher,
   now: Date,
 ): Promise<StatsResponse> {
-  const targets = catalog.filter((entry) => isTargetType(entry.type));
   const reposByKey = new Map<string, GitHubRepo>();
 
-  for (const entry of targets) {
+  for (const entry of catalog) {
     const repo = parseGitHubRepo(entry.repoURL);
     if (repo === null) {
       continue;
@@ -121,7 +153,7 @@ export async function buildStats(
     languagesByRepoKey.set(key, languages);
   }
 
-  const items = targets.map((entry): StatsItem => {
+  const items = catalog.map((entry): StatsItem => {
     const repo = parseGitHubRepo(entry.repoURL);
     const languages = repo === null ? {} : languagesByRepoKey.get(repoKey(repo));
     if (languages === undefined) {
@@ -138,6 +170,7 @@ export async function buildStats(
       latestVersion: entry["latest-version"] ?? null,
       isGithubSource: repo !== null,
       isRust: Object.hasOwn(languages, "Rust"),
+      hasNativeBinary: hasNativeBinary(entry),
       languages,
     };
   });
@@ -162,6 +195,56 @@ export async function buildStats(
     },
     items,
   };
+}
+
+function hasNativeBinaryExtension(path: string): boolean {
+  const extension = path.split(".").pop();
+  if (extension === undefined) {
+    return false;
+  }
+
+  return NATIVE_BINARY_EXTENSIONS.has(extension.toLowerCase());
+}
+
+function assertCatalogVersions(
+  value: unknown,
+  label: string,
+): asserts value is CatalogVersion[] | undefined {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+
+  for (const [versionIndex, version] of value.entries()) {
+    if (!isRecord(version)) {
+      throw new Error(`${label} at index ${versionIndex} must be an object.`);
+    }
+    assertString(version.version, `${label} at index ${versionIndex}.version`);
+    assertCatalogFiles(version.file, `${label} at index ${versionIndex}.file`);
+  }
+}
+
+function assertCatalogFiles(
+  value: unknown,
+  label: string,
+): asserts value is CatalogFile[] | undefined {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+
+  for (const [fileIndex, file] of value.entries()) {
+    if (!isRecord(file)) {
+      throw new Error(`${label} at index ${fileIndex} must be an object.`);
+    }
+    assertString(file.path, `${label} at index ${fileIndex}.path`);
+  }
 }
 
 export function repoKey(repo: GitHubRepo): string {
