@@ -1,8 +1,11 @@
 import * as v from "valibot";
 
-// NOTE:
-// - KuroNeko.CopyAlias：デフォルトブランチにRustが含まれていないだけで、実際はRustが使われている
-const rustOverrides = ["KuroNeko.CopyAlias"];
+const rustOverrides = [
+  // デフォルトブランチにRustが含まれていないだけで、実際はRustが使われている
+  "KuroNeko.CopyAlias",
+  // インストールされるが、filesに中心ずらしのaux2が含まれていない
+  "azurite.AdjustPivot_A",
+];
 
 export const CATALOG_URL =
   "https://raw.githubusercontent.com/Neosku/aviutl2-catalog-data/refs/heads/main/index.json";
@@ -167,6 +170,7 @@ export async function buildStats(
       throw new Error(`Languages were not fetched for ${entry.repoURL}.`);
     }
 
+    const isRust = rustOverrides.includes(entry.id) || Object.hasOwn(languages, "Rust");
     return {
       id: entry.id,
       name: entry.name,
@@ -176,8 +180,8 @@ export async function buildStats(
       repoUrl: entry.repoURL ?? null,
       latestVersion: entry["latest-version"] ?? null,
       isGithubSource: repo !== null,
-      isRust: rustOverrides.includes(entry.id) || Object.hasOwn(languages, "Rust"),
-      hasNativeBinary: hasNativeBinary(entry),
+      isRust,
+      hasNativeBinary: isRust || hasNativeBinary(entry),
       languages,
     };
   });
