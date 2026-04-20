@@ -1,3 +1,5 @@
+import { env } from "cloudflare:workers";
+import { Hono } from "hono";
 import {
   CACHE_MAX_AGE_SECONDS,
   CATALOG_URL,
@@ -12,62 +14,65 @@ type Env = {
   GITHUB_TOKEN?: string;
 };
 
+type HonoEnv = {
+  Bindings: Env;
+};
+
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": `public, max-age=${CACHE_MAX_AGE_SECONDS}`,
 };
 
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname !== "/api/stats") {
-      return new Response("Not Found", { status: 404 });
-    }
+const app = new Hono<HonoEnv>();
 
-    if (request.method !== "GET") {
-      return json({ error: "Method not allowed." }, 405, {
-        Allow: "GET",
+app.get("/api/version", (c) => {
+  return c.json({
+    id: env.CF_VERSION_METADATA.id,
+  });
+});
+
+app.get("/api/stats", async (c) => {
+  try {
+    const cacheKey = new Request(new URL("/api/stats", c.req.url), c.req.raw);
+    const cache = getDefaultCache();
+    const cached = await cache.match(cacheKey);
+    if (cached !== undefined) {
+      const headers = new Headers(cached.headers);
+      headers.set("X-Cache", "HIT");
+      return new Response(cached.body, {
+        status: cached.status,
+        statusText: cached.statusText,
+        headers,
       });
     }
 
-    try {
-      const cacheKey = new Request(new URL("/api/stats", url.origin), request);
-      const cache = getDefaultCache();
-      const cached = await cache.match(cacheKey);
-      if (cached !== undefined) {
-        const headers = new Headers(cached.headers);
-        headers.set("X-Cache", "HIT");
-        return new Response(cached.body, {
-          status: cached.status,
-          statusText: cached.statusText,
-          headers,
-        });
-      }
-
-      const token = env.GITHUB_TOKEN;
-      if (token === undefined || token.length === 0) {
-        throw new Error("GITHUB_TOKEN is required.");
-      }
-
-      const catalog = await fetchCatalog();
-      const stats = await buildStats(
-        catalog,
-        (repo) => fetchGitHubLanguages(repo, token),
-        new Date(),
-      );
-      const response = json(stats, 200, {
-        "X-Cache": "MISS",
-      });
-      ctx.waitUntil(cache.put(cacheKey, response.clone()));
-      return response;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      return json({ error: message }, 500, {
-        "Cache-Control": "no-store",
-      });
+    const token = c.env.GITHUB_TOKEN;
+    if (token === undefined || token.length === 0) {
+      throw new Error("GITHUB_TOKEN is required.");
     }
-  },
-};
+
+    const catalog = await fetchCatalog();
+    const stats = await buildStats(
+      catalog,
+      (repo) => fetchGitHubLanguages(repo, token),
+      new Date(),
+    );
+    const response = json(stats, 200, {
+      "X-Cache": "MISS",
+    });
+    c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error.";
+    return json({ error: message }, 500, {
+      "Cache-Control": "no-store",
+    });
+  }
+});
+
+app.notFound(() => new Response("Not Found", { status: 404 }));
+
+export default app;
 
 function getDefaultCache(): Cache {
   return (caches as CacheStorage & { default: Cache }).default;

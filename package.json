@@ -12,6 +12,7 @@
     "types": "wrangler types"
   },
   "dependencies": {
+    "hono": "^4.12.9",
     "vue": "latest"
   },
   "devDependencies": {

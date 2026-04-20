@@ -43,11 +43,11 @@ const targetItems = computed(() => {
     items = stats.value.items.filter((item) => item.hasNativeBinary);
   }
 
-  if (!showTruth.value) {
-    return items;
+  if (showTruth.value) {
+    return items.filter((item) => item.author !== "Nanashi.");
   }
 
-  return items.filter((item) => item.author !== "Nanashi.");
+  return items;
 });
 
 const rustRepositories = computed(() => {
@@ -79,7 +79,8 @@ const progressValue = computed(() => `${Math.max(0, Math.min(1, rustRatio.value)
 
 onMounted(async () => {
   try {
-    const response = await fetch("/api/stats");
+    const version = (await fetch("/api/version").then((res) => res.json())) as { id: string };
+    const response = await fetch(`/api/stats?version=${encodeURIComponent(version.id)}`);
     const payload = await response.json();
     if (!response.ok) {
       const error = payload as { error?: unknown };
