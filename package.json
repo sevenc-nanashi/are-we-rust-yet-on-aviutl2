@@ -8,14 +8,14 @@
     "build": "vp build",
     "check": "vp check",
     "test": "vp test",
-    "deploy": "vp build && wrangler deploy"
+    "deploy": "vp build && wrangler deploy",
+    "types": "wrangler types"
   },
   "dependencies": {
     "vue": "latest"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "latest",
-    "@cloudflare/workers-types": "latest",
     "@vitejs/plugin-vue": "latest",
     "typescript": "latest",
     "vite": "npm:@voidzero-dev/vite-plus-core@latest",
