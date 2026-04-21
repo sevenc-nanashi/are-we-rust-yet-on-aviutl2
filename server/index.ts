@@ -99,7 +99,10 @@ async function fetchCatalog(): Promise<CatalogEntry[]> {
   return parseCatalogEntries(json);
 }
 
-async function fetchGitHubLanguages(repo: GitHubRepo, token: string): Promise<Languages> {
+async function fetchGitHubLanguages(
+  repo: GitHubRepo,
+  token: string,
+): Promise<{ languages: Languages; canonicalRepo: GitHubRepo }> {
   const response = await fetch(
     `https://api.github.com/repos/${repo.owner}/${repo.repo}/languages`,
     {
@@ -122,9 +125,20 @@ async function fetchGitHubLanguages(repo: GitHubRepo, token: string): Promise<La
     );
   }
 
+  // Detect if the repo was renamed by inspecting the final URL after redirect
+  const canonicalRepo = parseGitHubApiLanguagesUrl(response.url) ?? repo;
+
   const json = await response.json();
   assertLanguages(json, `${repo.owner}/${repo.repo}`);
-  return json;
+  return { languages: json, canonicalRepo };
+}
+
+function parseGitHubApiLanguagesUrl(url: string): GitHubRepo | null {
+  const match = /\/repos\/([^/]+)\/([^/?]+)\/languages/.exec(url);
+  if (match === null) {
+    return null;
+  }
+  return { owner: match[1], repo: match[2] };
 }
 
 function assertLanguages(value: unknown, repo: string): asserts value is Languages {

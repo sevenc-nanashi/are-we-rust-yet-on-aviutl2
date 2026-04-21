@@ -3,7 +3,6 @@ import {
   type CatalogEntry,
   type GitHubRepo,
   type GitHubLanguagesFetcher,
-  type Languages,
   buildStats,
   hasNativeBinary,
   isTargetType,
@@ -107,7 +106,7 @@ describe("parseCatalogEntries", () => {
 });
 
 describe("buildStats", () => {
-  it("applies repoUrl overrides for renamed repositories", async () => {
+  it("resolves repoUrl to canonical after rename, detected via redirect", async () => {
     const catalog: CatalogEntry[] = [
       {
         id: "aviutl2-community.aviutl2_community_translation_companion",
@@ -116,22 +115,23 @@ describe("buildStats", () => {
         repoURL: "https://github.com/aviutl2/aviutl2-community-translation",
       },
     ];
-    const fetchLanguages = vi.fn<GitHubLanguagesFetcher>(
-      async (repo: GitHubRepo): Promise<Languages> => {
-        const key = repoKey(repo);
-        if (key === "aviutl2/aviutl2_community_translation") {
-          return { Ruby: 500 };
-        }
-        throw new Error(`Unexpected repo ${key}`);
-      },
-    );
+    // Simulate: fetch was called with the old repo name, but the GitHub API redirected
+    // to the new name (aviutl2_community_translation), detected via response.url
+    const renamedRepo: GitHubRepo = { owner: "aviutl2", repo: "aviutl2_community_translation" };
+    const fetchLanguages = vi.fn<GitHubLanguagesFetcher>(async (repo: GitHubRepo) => {
+      const key = repoKey(repo);
+      if (key === "aviutl2/aviutl2-community-translation") {
+        return { languages: { Ruby: 500 }, canonicalRepo: renamedRepo };
+      }
+      throw new Error(`Unexpected repo ${key}`);
+    });
 
     const stats = await buildStats(catalog, fetchLanguages, new Date("2026-04-21T00:00:00.000Z"));
 
     expect(fetchLanguages).toHaveBeenCalledTimes(1);
     expect(fetchLanguages).toHaveBeenCalledWith({
       owner: "aviutl2",
-      repo: "aviutl2_community_translation",
+      repo: "aviutl2-community-translation",
     });
     expect(stats.items[0].repoUrl).toBe("https://github.com/aviutl2/aviutl2_community_translation");
     expect(stats.items[0].isRust).toBe(false);
@@ -198,18 +198,16 @@ describe("buildStats", () => {
         ],
       },
     ];
-    const fetchLanguages = vi.fn<GitHubLanguagesFetcher>(
-      async (repo: GitHubRepo): Promise<Languages> => {
-        const key = repoKey(repo);
-        if (key === "example/rusty") {
-          return { Rust: 1200, TypeScript: 30 };
-        }
-        if (key === "example/ts") {
-          return { TypeScript: 900 };
-        }
-        throw new Error(`Unexpected repo ${key}`);
-      },
-    );
+    const fetchLanguages = vi.fn<GitHubLanguagesFetcher>(async (repo: GitHubRepo) => {
+      const key = repoKey(repo);
+      if (key === "example/rusty") {
+        return { languages: { Rust: 1200, TypeScript: 30 }, canonicalRepo: repo };
+      }
+      if (key === "example/ts") {
+        return { languages: { TypeScript: 900 }, canonicalRepo: repo };
+      }
+      throw new Error(`Unexpected repo ${key}`);
+    });
 
     const stats = await buildStats(catalog, fetchLanguages, new Date("2026-04-20T00:00:00.000Z"));
 

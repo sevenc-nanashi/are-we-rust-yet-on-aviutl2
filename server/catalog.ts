@@ -7,12 +7,6 @@ const rustOverrides = [
   "azurite.AdjustPivot_A",
 ];
 
-const repoUrlOverrides: Record<string, string> = {
-  // aviutl2-community-translationリポジトリがaviutl2_community_translationに改名された
-  "https://github.com/aviutl2/aviutl2-community-translation":
-    "https://github.com/aviutl2/aviutl2_community_translation",
-};
-
 export const CATALOG_URL =
   "https://raw.githubusercontent.com/Neosku/aviutl2-catalog-data/refs/heads/main/index.json";
 
@@ -83,7 +77,7 @@ export type StatsResponse = {
   items: StatsItem[];
 };
 
-export type GitHubLanguagesFetcher = (repo: GitHubRepo) => Promise<Languages>;
+export type GitHubLanguagesFetcher = (repo: GitHubRepo) => Promise<{ languages: Languages; canonicalRepo: GitHubRepo }>;
 
 const NATIVE_BINARY_EXTENSIONS = new Set(["aui2", "auo2", "auf2", "aux2", "mod2"]);
 
@@ -143,10 +137,6 @@ export function hasNativeBinary(entry: CatalogEntry): boolean {
   return latest.file.some((file) => hasNativeBinaryExtension(file.path));
 }
 
-function effectiveRepoUrl(repoURL: string | undefined): string | undefined {
-  return repoUrlOverrides[repoURL ?? ""] ?? repoURL;
-}
-
 export async function buildStats(
   catalog: CatalogEntry[],
   fetchLanguages: GitHubLanguagesFetcher,
@@ -155,7 +145,7 @@ export async function buildStats(
   const reposByKey = new Map<string, GitHubRepo>();
 
   for (const entry of catalog) {
-    const repo = parseGitHubRepo(effectiveRepoUrl(entry.repoURL));
+    const repo = parseGitHubRepo(entry.repoURL);
     if (repo === null) {
       continue;
     }
@@ -163,23 +153,30 @@ export async function buildStats(
   }
 
   const languagesByRepoKey = new Map<string, Languages>();
+  const canonicalRepoByKey = new Map<string, GitHubRepo>();
   const repoEntries = [...reposByKey.entries()];
   const fetchedLanguages = await mapWithConcurrency(repoEntries, 8, async ([key, repo]) => {
-    const languages = await fetchLanguages(repo);
-    return [key, languages] as const;
+    const { languages, canonicalRepo } = await fetchLanguages(repo);
+    return [key, languages, canonicalRepo] as const;
   });
 
-  for (const [key, languages] of fetchedLanguages) {
+  for (const [key, languages, canonicalRepo] of fetchedLanguages) {
     languagesByRepoKey.set(key, languages);
+    canonicalRepoByKey.set(key, canonicalRepo);
   }
 
   const items = catalog.map((entry): StatsItem => {
-    const repoUrl = effectiveRepoUrl(entry.repoURL);
-    const repo = parseGitHubRepo(repoUrl);
+    const repo = parseGitHubRepo(entry.repoURL);
     const languages = repo === null ? {} : languagesByRepoKey.get(repoKey(repo));
     if (languages === undefined) {
       throw new Error(`Languages were not fetched for ${entry.repoURL}.`);
     }
+
+    const canonicalRepo = repo === null ? null : (canonicalRepoByKey.get(repoKey(repo)) ?? repo);
+    const repoUrl =
+      canonicalRepo !== null
+        ? `https://github.com/${canonicalRepo.owner}/${canonicalRepo.repo}`
+        : (entry.repoURL ?? null);
 
     const isRust = rustOverrides.includes(entry.id) || Object.hasOwn(languages, "Rust");
     return {
@@ -188,7 +185,7 @@ export async function buildStats(
       type: entry.type,
       summary: entry.summary ?? null,
       author: entry.author ?? null,
-      repoUrl: repoUrl ?? null,
+      repoUrl,
       latestVersion: entry["latest-version"] ?? null,
       isGithubSource: repo !== null,
       isRust,
