@@ -77,7 +77,7 @@ export type StatsResponse = {
   items: StatsItem[];
 };
 
-export type GitHubLanguagesFetcher = (repo: GitHubRepo) => Promise<Languages>;
+export type GitHubLanguagesFetcher = (repo: GitHubRepo) => Promise<{ languages: Languages; canonicalRepo: GitHubRepo }>;
 
 const NATIVE_BINARY_EXTENSIONS = new Set(["aui2", "auo2", "auf2", "aux2", "mod2"]);
 
@@ -153,14 +153,16 @@ export async function buildStats(
   }
 
   const languagesByRepoKey = new Map<string, Languages>();
+  const canonicalRepoByKey = new Map<string, GitHubRepo>();
   const repoEntries = [...reposByKey.entries()];
   const fetchedLanguages = await mapWithConcurrency(repoEntries, 8, async ([key, repo]) => {
-    const languages = await fetchLanguages(repo);
-    return [key, languages] as const;
+    const { languages, canonicalRepo } = await fetchLanguages(repo);
+    return [key, languages, canonicalRepo] as const;
   });
 
-  for (const [key, languages] of fetchedLanguages) {
+  for (const [key, languages, canonicalRepo] of fetchedLanguages) {
     languagesByRepoKey.set(key, languages);
+    canonicalRepoByKey.set(key, canonicalRepo);
   }
 
   const items = catalog.map((entry): StatsItem => {
@@ -170,6 +172,12 @@ export async function buildStats(
       throw new Error(`Languages were not fetched for ${entry.repoURL}.`);
     }
 
+    const canonicalRepo = repo === null ? null : (canonicalRepoByKey.get(repoKey(repo)) ?? repo);
+    const repoUrl =
+      canonicalRepo !== null
+        ? `https://github.com/${canonicalRepo.owner}/${canonicalRepo.repo}`
+        : (entry.repoURL ?? null);
+
     const isRust = rustOverrides.includes(entry.id) || Object.hasOwn(languages, "Rust");
     return {
       id: entry.id,
@@ -177,7 +185,7 @@ export async function buildStats(
       type: entry.type,
       summary: entry.summary ?? null,
       author: entry.author ?? null,
-      repoUrl: entry.repoURL ?? null,
+      repoUrl,
       latestVersion: entry["latest-version"] ?? null,
       isGithubSource: repo !== null,
       isRust,
