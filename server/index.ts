@@ -113,7 +113,6 @@ async function fetchGitHubLanguages(
         "X-GitHub-Api-Version": "2022-11-28",
       },
       cf: {
-        cacheEverything: true,
         cacheTtl: CACHE_MAX_AGE_SECONDS,
       },
     },
