@@ -7,6 +7,12 @@ const rustOverrides = [
   "azurite.AdjustPivot_A",
 ];
 
+const repoUrlOverrides: Record<string, string> = {
+  // aviutl2-community-translationリポジトリがaviutl2_community_translationに改名された
+  "https://github.com/aviutl2/aviutl2-community-translation":
+    "https://github.com/aviutl2/aviutl2_community_translation",
+};
+
 export const CATALOG_URL =
   "https://raw.githubusercontent.com/Neosku/aviutl2-catalog-data/refs/heads/main/index.json";
 
@@ -137,6 +143,10 @@ export function hasNativeBinary(entry: CatalogEntry): boolean {
   return latest.file.some((file) => hasNativeBinaryExtension(file.path));
 }
 
+function effectiveRepoUrl(repoURL: string | undefined): string | undefined {
+  return repoUrlOverrides[repoURL ?? ""] ?? repoURL;
+}
+
 export async function buildStats(
   catalog: CatalogEntry[],
   fetchLanguages: GitHubLanguagesFetcher,
@@ -145,7 +155,7 @@ export async function buildStats(
   const reposByKey = new Map<string, GitHubRepo>();
 
   for (const entry of catalog) {
-    const repo = parseGitHubRepo(entry.repoURL);
+    const repo = parseGitHubRepo(effectiveRepoUrl(entry.repoURL));
     if (repo === null) {
       continue;
     }
@@ -164,7 +174,8 @@ export async function buildStats(
   }
 
   const items = catalog.map((entry): StatsItem => {
-    const repo = parseGitHubRepo(entry.repoURL);
+    const repoUrl = effectiveRepoUrl(entry.repoURL);
+    const repo = parseGitHubRepo(repoUrl);
     const languages = repo === null ? {} : languagesByRepoKey.get(repoKey(repo));
     if (languages === undefined) {
       throw new Error(`Languages were not fetched for ${entry.repoURL}.`);
@@ -177,7 +188,7 @@ export async function buildStats(
       type: entry.type,
       summary: entry.summary ?? null,
       author: entry.author ?? null,
-      repoUrl: entry.repoURL ?? null,
+      repoUrl: repoUrl ?? null,
       latestVersion: entry["latest-version"] ?? null,
       isGithubSource: repo !== null,
       isRust,

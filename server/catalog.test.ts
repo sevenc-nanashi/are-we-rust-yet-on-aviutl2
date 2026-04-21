@@ -107,6 +107,36 @@ describe("parseCatalogEntries", () => {
 });
 
 describe("buildStats", () => {
+  it("applies repoUrl overrides for renamed repositories", async () => {
+    const catalog: CatalogEntry[] = [
+      {
+        id: "aviutl2-community.aviutl2_community_translation_companion",
+        name: "AviUtl2 Community Translation Companion",
+        type: "言語ファイル",
+        repoURL: "https://github.com/aviutl2/aviutl2-community-translation",
+      },
+    ];
+    const fetchLanguages = vi.fn<GitHubLanguagesFetcher>(
+      async (repo: GitHubRepo): Promise<Languages> => {
+        const key = repoKey(repo);
+        if (key === "aviutl2/aviutl2_community_translation") {
+          return { Ruby: 500 };
+        }
+        throw new Error(`Unexpected repo ${key}`);
+      },
+    );
+
+    const stats = await buildStats(catalog, fetchLanguages, new Date("2026-04-21T00:00:00.000Z"));
+
+    expect(fetchLanguages).toHaveBeenCalledTimes(1);
+    expect(fetchLanguages).toHaveBeenCalledWith({
+      owner: "aviutl2",
+      repo: "aviutl2_community_translation",
+    });
+    expect(stats.items[0].repoUrl).toBe("https://github.com/aviutl2/aviutl2_community_translation");
+    expect(stats.items[0].isRust).toBe(false);
+  });
+
   it("summarizes Rust ratios for all catalog entries and deduplicates GitHub repository calls", async () => {
     const catalog: CatalogEntry[] = [
       {
@@ -195,10 +225,10 @@ describe("buildStats", () => {
     });
     expect(stats.items.map((item) => [item.id, item.isRust, item.hasNativeBinary])).toEqual([
       ["rust.plugin", true, true],
-      ["rust.script", true, false],
+      ["rust.script", true, true],
       ["ts.plugin", false, true],
       ["drive.script", false, false],
-      ["core", true, false],
+      ["core", true, true],
     ]);
   });
 });
